@@ -121,6 +121,33 @@ export default function Canvas() {
           if (box) {
             canvasStore.updateBox({ ...box, content: newContent });
           }
+        },
+        (boxId, deltaX, deltaY) => {
+          // Box moved - update position and move nested content
+          const box = canvasStore.getBox(boxId);
+          if (box) {
+            const updatedBox = {
+              ...box,
+              x: box.x + deltaX,
+              y: box.y + deltaY,
+            };
+            canvasStore.updateBox(updatedBox);
+
+            // If this box has a linked canvas, move all boxes in that canvas too
+            if (box.linkedCanvasId) {
+              const nestedCanvas = canvasStore.canvases.find(c => c.id === box.linkedCanvasId);
+              if (nestedCanvas) {
+                const nestedBoxes = canvasStore.boxes[nestedCanvas.id] || [];
+                nestedBoxes.forEach(nestedBox => {
+                  canvasStore.updateBox({
+                    ...nestedBox,
+                    x: nestedBox.x + deltaX,
+                    y: nestedBox.y + deltaY,
+                  });
+                });
+              }
+            }
+          }
         }
       );
     });

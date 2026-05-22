@@ -169,6 +169,27 @@ export function createBoxObject(options: any): any {
       this.fire('selected');
     });
 
+    // Single click on text: select the box
+    text.on('mousedown', (opt: any) => {
+      const evt = opt.e;
+      // Don't prevent default to allow text selection
+      // Just make sure the box is selected
+      if (canvas.getActiveObject() !== this) {
+        canvas.setActiveObject(this);
+      }
+    });
+
+    // Double click to edit text
+    text.on('mousedblclick', (opt: any) => {
+      const evt = opt.e;
+      // Set text as active object for editing
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      text.selectAll();
+      evt.preventDefault();
+      evt.stopPropagation();
+    });
+
     // When box is selected, also select text
     const boxSelf = this;
     const originalOn = this.on;
@@ -261,25 +282,126 @@ export function createCanvas(canvasElement: HTMLCanvasElement | string, state?: 
     canvas.setViewportTransform([state.zoom, 0, 0, state.zoom, state.panX, state.panY]);
   }
 
-  // Enable infinite canvas behavior
-  canvas.on('mouse:wheel', (opt: any) => {
-    const delta = opt.e.deltaY;
-    let zoom = canvas.getZoom();
-    zoom *= 0.999 ** delta;
-    if (zoom > 20) zoom = 20;
-    if (zoom < 0.1) zoom = 0.1;
-
-    const pointer = canvas.getPointer(opt.e);
-    canvas.zoomToPoint(pointer, zoom);
-    opt.e.preventDefault();
-    opt.e.stopPropagation();
-  });
-
-  // Panning with right mouse button or space+drag
+  // Panning state
   let isPanning = false;
   let lastPosX = 0;
   let lastPosY = 0;
+  let isSpaceKeyDown = false;
+  let isTouchPanning = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
 
+  // Track space key for panning
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      isSpaceKeyDown = true;
+      canvas.setCursor('grab');
+      e.preventDefault();
+    }
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (e.code === 'Space') {
+      isSpaceKeyDown = false;
+      canvas.setCursor('default');
+      isPanning = false;
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
+
+  // Touch event handlers for panning
+  const handleTouchStart = (e: TouchEvent) => {
+    if (isSpaceKeyDown && e.touches.length === 1) {
+      isTouchPanning = true;
+      isPanning = true;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      lastPosX = touchStartX;
+      lastPosY = touchStartY;
+      canvas.setCursor('grab');
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (isTouchPanning && e.touches.length === 1) {
+      const vpt = canvas.viewportTransform;
+      if (!vpt) return;
+
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const deltaX = currentX - lastPosX;
+      const deltaY = currentY - lastPosY;
+
+      vpt[4] += deltaX;
+      vpt[5] += deltaY;
+
+      canvas.setViewportTransform(vpt);
+      canvas.renderAll();
+
+      lastPosX = currentX;
+      lastPosY = currentY;
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    isTouchPanning = false;
+    isPanning = false;
+    canvas.setCursor('default');
+  };
+
+  canvas.getElement()?.addEventListener('touchstart', handleTouchStart, { passive: false });
+  canvas.getElement()?.addEventListener('touchmove', handleTouchMove, { passive: false });
+  canvas.getElement()?.addEventListener('touchend', handleTouchEnd);
+
+  // Enable canvas scrolling with mouse wheel (pan instead of zoom when not using ctrl/cmd)
+  // And zoom with ctrl/cmd + scroll
+  canvas.on('mouse:wheel', (opt: any) => {
+    const evt = opt.e;
+    const isShiftDown = evt.shiftKey;
+    const isCtrlDown = evt.ctrlKey || evt.metaKey; // cmd on Mac
+
+    // If shift is down, scroll horizontally
+    // If neither shift nor ctrl, scroll vertically (pan)
+    // If ctrl/cmd is down, zoom
+    
+    if (isCtrlDown) {
+      // Zoom behavior
+      const delta = evt.deltaY;
+      let zoom = canvas.getZoom();
+      zoom *= 0.999 ** delta;
+      if (zoom > 20) zoom = 20;
+      if (zoom < 0.1) zoom = 0.1;
+
+      const pointer = canvas.getPointer(evt);
+      canvas.zoomToPoint(pointer, zoom);
+      evt.preventDefault();
+      evt.stopPropagation();
+    } else {
+      // Pan/scroll behavior
+      const vpt = canvas.viewportTransform;
+      if (!vpt) return;
+
+      // Use wheel delta for panning
+      const deltaX = isShiftDown ? evt.deltaY : 0;
+      const deltaY = isShiftDown ? 0 : evt.deltaY;
+
+      // Adjust pan based on zoom level (higher zoom = more sensitive panning)
+      const zoom = canvas.getZoom();
+      vpt[4] += deltaX / zoom;
+      vpt[5] += deltaY / zoom;
+
+      canvas.setViewportTransform(vpt);
+      canvas.renderAll();
+      evt.preventDefault();
+      evt.stopPropagation();
+    }
+  });
+
+  // Panning with right mouse button or space+drag
   canvas.on('mouse:down', (opt: any) => {
     const evt = opt.e;
     // Check if we clicked on a box text (don't pan)
@@ -289,11 +411,17 @@ export function createCanvas(canvasElement: HTMLCanvasElement | string, state?: 
       return;
     }
     
-    if (evt.button === 2) { // Right mouse button
+    // Check if we clicked on a box (don't pan if dragging a box)
+    if (target && target.type === 'box') {
+      return;
+    }
+    
+    if (evt.button === 2 || isSpaceKeyDown) { // Right mouse button or space
       isPanning = true;
       lastPosX = evt.clientX;
       lastPosY = evt.clientY;
       canvas.setCursor('grab');
+      evt.preventDefault();
     }
   });
 
@@ -344,7 +472,8 @@ export function addBoxToCanvas(
   box: any,
   onSelect?: (boxId: string) => void,
   onDoubleClick?: (boxId: string) => void,
-  onTextChanged?: (boxId: string, newContent: string) => void
+  onTextChanged?: (boxId: string, newContent: string) => void,
+  onMoved?: (boxId: string, deltaX: number, deltaY: number) => void
 ): any {
   const boxObj = createBoxObject({
     left: box.x || 0,
@@ -361,6 +490,10 @@ export function addBoxToCanvas(
   boxObj.addTextLabel(box.content || 'New Box', canvas, (newContent: string) => {
     onTextChanged?.(box.id, newContent);
   });
+
+  // Track position for movement delta calculation
+  let lastLeft = boxObj.left;
+  let lastTop = boxObj.top;
 
   // Event handlers
   boxObj.on('mousedblclick', () => {
@@ -385,6 +518,45 @@ export function addBoxToCanvas(
   boxObj.on('selected', () => {
     if (boxObj.textObject) {
       boxObj.textObject.bringToFront();
+    }
+  });
+
+  // Track movement and calculate delta
+  boxObj.on('moving', () => {
+    const deltaX = boxObj.left - lastLeft;
+    const deltaY = boxObj.top - lastTop;
+    lastLeft = boxObj.left;
+    lastTop = boxObj.top;
+    
+    // Update text position while moving
+    if (boxObj.textObject) {
+      boxObj.textObject.set({
+        left: boxObj.left + 10,
+        top: boxObj.top + 10
+      });
+      canvas.renderAll();
+    }
+  });
+
+  boxObj.on('modified', () => {
+    const deltaX = boxObj.left - lastLeft;
+    const deltaY = boxObj.top - lastTop;
+    
+    if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+      onMoved?.(box.id, deltaX, deltaY);
+    }
+    
+    lastLeft = boxObj.left;
+    lastTop = boxObj.top;
+    
+    // Update text position after move
+    if (boxObj.textObject) {
+      boxObj.textObject.set({
+        left: boxObj.left + 10,
+        top: boxObj.top + 10,
+        width: boxObj.width - 20
+      });
+      canvas.renderAll();
     }
   });
 
