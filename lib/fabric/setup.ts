@@ -110,7 +110,7 @@ export function createBoxObject(options: any): any {
   rect.content = options.content || '';
 
   // Add custom methods
-  rect.addTextLabel = function(content: string, canvas: any, onTextChanged?: (newContent: string) => void) {
+  rect.addTextLabel = function(content: string, canvas: any, onTextChanged?: (newContent: string) => void, onStartEditing?: () => void) {
     if (this.textObject) {
       this.textObject.set({ text: content });
       canvas.renderAll();
@@ -124,12 +124,12 @@ export function createBoxObject(options: any): any {
       fontFamily: 'Raleway, sans-serif',
       lineHeight: 1.5,
       width: this.width - 20,
-      left: this.left + 10,
-      top: this.top + 10,
+      left: 10,
+      top: 10,
       originX: 'left',
       originY: 'top',
       selectable: false,
-      evented: true,
+      evented: false,  // Don't intercept mouse events - box handles everything
       editingBorderColor: '#667eea',
       padding: 5,
       borderColor: '#ddd',
@@ -139,6 +139,23 @@ export function createBoxObject(options: any): any {
       lockScalingX: true,
       lockScalingY: true,
       lockUniScaling: true,
+    });
+
+    // Make text editable when box is selected and user presses Enter
+    const boxSelf = this;
+    canvas.on('key:down', (opt: any) => {
+      if (opt.e.key === 'Enter' && canvas.getActiveObject() === boxSelf) {
+        text.set({ evented: true, selectable: true });
+        canvas.setActiveObject(text);
+        text.enterEditing();
+        text.selectAll();
+        canvas.renderAll();
+      }
+      if (opt.e.key === 'Escape') {
+        text.set({ evented: false, selectable: false });
+        canvas.setActiveObject(boxSelf);
+        canvas.renderAll();
+      }
     });
 
     // Store reference to box
@@ -160,52 +177,10 @@ export function createBoxObject(options: any): any {
     // When text editing exits
     text.on('editing:exited', () => {
       this.set({ stroke: '#ddd', strokeWidth: 1 });
+      text.set({ evented: false, selectable: false });
+      canvas.setActiveObject(this);
       canvas.renderAll();
     });
-
-    // When text is selected (clicked)
-    text.on('selected', () => {
-      // Forward selection to box
-      this.fire('selected');
-    });
-
-    // Single click on text: select the box
-    text.on('mousedown', (opt: any) => {
-      const evt = opt.e;
-      // Don't prevent default to allow text selection
-      // Just make sure the box is selected
-      if (canvas.getActiveObject() !== this) {
-        canvas.setActiveObject(this);
-      }
-    });
-
-    // Double click to edit text
-    text.on('mousedblclick', (opt: any) => {
-      const evt = opt.e;
-      // Set text as active object for editing
-      canvas.setActiveObject(text);
-      text.enterEditing();
-      text.selectAll();
-      evt.preventDefault();
-      evt.stopPropagation();
-    });
-
-    // When box is selected, also select text
-    const boxSelf = this;
-    const originalOn = this.on;
-    this.on = function(eventName: string, handler: any) {
-      if (eventName === 'selected') {
-        const wrappedHandler = function(...args: any[]) {
-          handler(...args);
-          // Select the text object when box is selected
-          if (boxSelf.textObject) {
-            canvas.setActiveObject(boxSelf.textObject);
-          }
-        };
-        return originalOn.call(boxSelf, 'selected', wrappedHandler);
-      }
-      return originalOn.call(boxSelf, eventName, handler);
-    };
 
     this.textObject = text;
     canvas.add(text);
@@ -214,6 +189,7 @@ export function createBoxObject(options: any): any {
     text.bringToFront();
     
     // When box moves, move text with it
+    // Text has relative coordinates, so we set its position based on box position
     const updateTextPosition = () => {
       if (this.textObject) {
         this.textObject.set({
@@ -227,6 +203,9 @@ export function createBoxObject(options: any): any {
     this.on('moving', updateTextPosition);
     this.on('scaling', updateTextPosition);
     this.on('modified', updateTextPosition);
+    
+    // Also update text when box is selected (for positioning after canvas rebuild)
+    this.on('selected', updateTextPosition);
   };
 
   rect.updateText = function(content: string) {
@@ -386,8 +365,19 @@ export function createCanvas(canvasElement: HTMLCanvasElement | string, state?: 
       if (!vpt) return;
 
       // Use wheel delta for panning
-      const deltaX = isShiftDown ? evt.deltaY : 0;
-      const deltaY = isShiftDown ? 0 : evt.deltaY;
+      // For shift+scroll: horizontal panning
+      // For trackpad horizontal scroll: use deltaX
+      // For regular scroll: vertical panning
+      let deltaX = 0;
+      let deltaY = 0;
+      
+      if (isShiftDown) {
+        deltaX = evt.deltaY || evt.wheelDeltaY || 0;
+      } else {
+        // Check for horizontal wheel (trackpad two-finger scroll)
+        deltaX = evt.deltaX || evt.wheelDeltaX || 0;
+        deltaY = evt.deltaY || evt.wheelDeltaY || 0;
+      }
 
       // Adjust pan based on zoom level (higher zoom = more sensitive panning)
       const zoom = canvas.getZoom();

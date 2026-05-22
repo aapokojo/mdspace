@@ -84,35 +84,11 @@ export default function Canvas() {
           canvasStore.selectBox(boxId);
         },
         (boxId) => {
-          // Double click - open box as new canvas or edit
+          // Double click - if box has linked canvas, navigate to it
+          // Otherwise do nothing (text editing is handled by Enter key in fabric)
           const box = canvasStore.getBox(boxId);
           if (box?.linkedCanvasId) {
-            // Navigate to the linked canvas
             canvasStore.navigateToCanvas(box.linkedCanvasId);
-          } else {
-            // Create a new nested canvas
-            const newCanvasId = crypto.randomUUID();
-            const newCanvas = {
-              id: newCanvasId,
-              name: `Canvas from ${box?.content.split('\n')[0].slice(0, 20) || 'Box'}`,
-              parentBoxId: boxId,
-              parentCanvasId: currentCanvas.id,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              zoom: 1,
-              panX: 0,
-              panY: 0,
-            };
-
-            // Add the new canvas
-            canvasStore.setCanvases([...canvasStore.canvases, newCanvas]);
-
-            // Link the box to the new canvas
-            const updatedBox = { ...box!, linkedCanvasId: newCanvasId };
-            canvasStore.updateBox(updatedBox);
-
-            // Navigate to the new canvas
-            canvasStore.navigateToCanvas(newCanvasId);
           }
         },
         (boxId, newContent) => {
