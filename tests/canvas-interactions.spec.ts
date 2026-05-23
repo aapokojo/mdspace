@@ -23,7 +23,8 @@ test.describe('Canvas Interactive Features', () => {
       const fabricCanvas = (window as any).testFabricCanvas;
       if (!fabricCanvas) return null;
       
-      const objects = fabricCanvas.getObjects().map((obj: any) => ({
+      // Only get box objects (type === 'box'), not text objects
+      const objects = fabricCanvas.getObjects().filter((obj: any) => obj.type === 'box').map((obj: any) => ({
         type: obj.type,
         boxId: obj.boxId,
         left: obj.left,
@@ -61,7 +62,7 @@ test.describe('Canvas Interactive Features', () => {
     const initialTop = firstBox.top;
     
     // Click on the first box at its center
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('.upper-canvas');
     await canvas.click({ 
       position: { 
         x: firstBox.left + firstBox.width / 2, 
@@ -101,7 +102,7 @@ test.describe('Canvas Interactive Features', () => {
     const initialPanX = initialState.panX;
     const initialPanY = initialState.panY;
     
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('.upper-canvas');
     
     // Right-click and drag to pan
     await canvas.click({ button: 'right', position: { x: 100, y: 100 } });
@@ -119,7 +120,7 @@ test.describe('Canvas Interactive Features', () => {
   });
 
   test('mouse wheel scrolls canvas', async ({ page }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('.upper-canvas');
     const initialState = await getFabricState(page);
     if (!initialState) return;
     
@@ -146,7 +147,7 @@ test.describe('Canvas Interactive Features', () => {
   });
 
   test('shift + wheel scrolls horizontally', async ({ page }) => {
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('.upper-canvas');
     const initialState = await getFabricState(page);
     if (!initialState) return;
     
@@ -184,7 +185,7 @@ test.describe('Canvas Interactive Features', () => {
     
     // Force a selection by clicking on first box
     const firstBox = initialState.objects[0];
-    const canvas = page.locator('canvas');
+    const canvas = page.locator('.upper-canvas');
     await canvas.click({ 
       position: { 
         x: firstBox.left + 10, 
@@ -204,6 +205,45 @@ test.describe('Canvas Interactive Features', () => {
     }));
     
     // All positions should be maintained (< 1px tolerance)
+    for (const initial of initialPositions) {
+      const after = afterPositions.find((p: any) => p.id === initial.id);
+      if (after) {
+        expect(Math.abs(after.left - initial.left)).toBeLessThan(1);
+        expect(Math.abs(after.top - initial.top)).toBeLessThan(1);
+      }
+    }
+  });
+
+  test('adding a new box preserves existing box positions', async ({ page }) => {
+    const initialState = await getFabricState(page);
+    if (!initialState || initialState.objects.length === 0) return;
+
+    // Get initial positions of all boxes
+    const initialPositions = initialState.objects.map((o: any) => ({
+      id: o.boxId,
+      left: o.left,
+      top: o.top,
+    }));
+
+    // Click the "Add Box" button
+    const addBoxButton = page.getByRole('button', { name: /add box|new box|box/i });
+    await addBoxButton.click();
+
+    await page.waitForTimeout(500);
+
+    const afterState = await getFabricState(page);
+    if (!afterState) return;
+
+    // Should have one more box than before
+    expect(afterState.objects.length).toBe(initialState.objects.length + 1);
+
+    const afterPositions = afterState.objects.map((o: any) => ({
+      id: o.boxId,
+      left: o.left,
+      top: o.top,
+    }));
+
+    // All existing boxes should maintain their positions (< 1px tolerance)
     for (const initial of initialPositions) {
       const after = afterPositions.find((p: any) => p.id === initial.id);
       if (after) {
