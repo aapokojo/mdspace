@@ -463,7 +463,7 @@ export function addBoxToCanvas(
   onSelect?: (boxId: string) => void,
   onDoubleClick?: (boxId: string) => void,
   onTextChanged?: (boxId: string, newContent: string) => void,
-  onMoved?: (boxId: string, deltaX: number, deltaY: number) => void
+  onMoved?: (boxId: string, newX: number, newY: number) => void
 ): any {
   const boxObj = createBoxObject({
     left: box.x || 0,
@@ -492,6 +492,9 @@ export function addBoxToCanvas(
 
   boxObj.on('selected', () => {
     onSelect?.(box.id);
+    if (boxObj.textObject) {
+      boxObj.textObject.bringToFront();
+    }
   });
 
   boxObj.on('mouseenter', () => {
@@ -502,13 +505,6 @@ export function addBoxToCanvas(
   boxObj.on('mouseleave', () => {
     boxObj.leaveHover();
     canvas.renderAll();
-  });
-
-  // Make the box bring its text to front when selected
-  boxObj.on('selected', () => {
-    if (boxObj.textObject) {
-      boxObj.textObject.bringToFront();
-    }
   });
 
   // Track movement and calculate delta
@@ -533,7 +529,7 @@ export function addBoxToCanvas(
     const deltaY = boxObj.top - lastTop;
     
     if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
-      onMoved?.(box.id, deltaX, deltaY);
+      onMoved?.(box.id, boxObj.left, boxObj.top);
     }
     
     lastLeft = boxObj.left;

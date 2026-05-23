@@ -98,14 +98,14 @@ export default function Canvas() {
             canvasStore.updateBox({ ...box, content: newContent });
           }
         },
-        (boxId, deltaX, deltaY) => {
-          // Box moved - update position and move nested content
+        (boxId, newX, newY) => {
+          // Box moved - update position in store and move nested content
           const box = canvasStore.getBox(boxId);
-          if (box) {
+          if (box && (box.x !== newX || box.y !== newY)) {
             const updatedBox = {
               ...box,
-              x: box.x + deltaX,
-              y: box.y + deltaY,
+              x: newX,
+              y: newY,
             };
             canvasStore.updateBox(updatedBox);
 
@@ -114,6 +114,8 @@ export default function Canvas() {
               const nestedCanvas = canvasStore.canvases.find(c => c.id === box.linkedCanvasId);
               if (nestedCanvas) {
                 const nestedBoxes = canvasStore.boxes[nestedCanvas.id] || [];
+                const deltaX = newX - box.x;
+                const deltaY = newY - box.y;
                 nestedBoxes.forEach(nestedBox => {
                   canvasStore.updateBox({
                     ...nestedBox,
