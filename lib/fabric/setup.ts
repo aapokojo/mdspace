@@ -142,6 +142,7 @@ export function createBoxObject(options: any): any {
       lockUniScaling: true,
       lockMovementX: true,  // Prevent text from being dragged separately from box
       lockMovementY: true,  // Prevent text from being dragged separately from box
+      wrap: true,  // Enable text wrapping
     });
 
     // Store reference to box
@@ -173,22 +174,30 @@ export function createBoxObject(options: any): any {
       evt.stopPropagation();
     });
 
-    // When text is edited
+    // Track if we're in editing mode to batch content updates
+    let isEditing = false;
+
+    // When text is edited - do NOT update store during editing
+    // (to prevent canvas rebuild which loses focus)
     text.on('changed', () => {
-      onTextChanged?.(text.get('text'));
+      // No action during editing - store is updated on exit
     });
 
     // When text editing starts
     text.on('editing:entered', () => {
+      isEditing = true;
       this.set({ stroke: '#ccc', strokeWidth: 2 });
       canvas.renderAll();
     });
 
-    // When text editing exits - keep text selectable for next edit
+    // When text editing exits - update store with final content
     text.on('editing:exited', () => {
+      isEditing = false;
       this.set({ stroke: '#ddd', strokeWidth: 1 });
       text.set({ selectable: true, evented: true });  // Keep selectable for next edit
       canvas.setActiveObject(this);
+      // Update store with final content
+      onTextChanged?.(text.get('text'));
       canvas.renderAll();
     });
 
