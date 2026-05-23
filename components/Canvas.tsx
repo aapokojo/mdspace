@@ -45,6 +45,9 @@ export default function Canvas() {
 
     const canvas = createCanvas(canvasElementRef.current);
     fabricCanvasRef.current = canvas;
+    
+    // Expose canvas for Playwright testing
+    (window as any).testFabricCanvas = canvas;
 
     // Fit to container
     fitCanvasToWindow(canvas, canvasContainerRef.current);
@@ -85,7 +88,6 @@ export default function Canvas() {
         },
         (boxId) => {
           // Double click - if box has linked canvas, navigate to it
-          // Otherwise do nothing (text editing is handled by Enter key in fabric)
           const box = canvasStore.getBox(boxId);
           if (box?.linkedCanvasId) {
             canvasStore.navigateToCanvas(box.linkedCanvasId);
@@ -98,17 +100,16 @@ export default function Canvas() {
             canvasStore.updateBox({ ...box, content: newContent });
           }
         },
-        (boxId, deltaX, deltaY) => {
-          // Box moved - update position and move nested content
+        (boxId, newX, newY) => {
+          // Box moved - update store
           const box = canvasStore.getBox(boxId);
-          if (box) {
-            const updatedBox = {
-              ...box,
-              x: box.x + deltaX,
-              y: box.y + deltaY,
-            };
-            canvasStore.updateBox(updatedBox);
-
+          if (box && (box.x !== newX || box.y !== newY)) {
+            const deltaX = newX - box.x;
+            const deltaY = newY - box.y;
+            
+            // Update the moved box
+            canvasStore.updateBox({ ...box, x: newX, y: newY });
+            
             // If this box has a linked canvas, move all boxes in that canvas too
             if (box.linkedCanvasId) {
               const nestedCanvas = canvasStore.canvases.find(c => c.id === box.linkedCanvasId);
@@ -131,35 +132,35 @@ export default function Canvas() {
     canvas.renderAll();
   }, [fabricLoaded, canvasStore.currentCanvasId, canvasStore.boxes]);
 
-  // Center view on selected box
-  useEffect(() => {
-    if (!fabricCanvasRef.current || !canvasStore.selectedBoxId || !fabricLoaded || !canvasElementRef.current) return;
-
-    const canvas = fabricCanvasRef.current;
-    const box = canvasStore.getBox(canvasStore.selectedBoxId);
-    if (!box) return;
-
-    // Find the fabric object
-    const obj = canvas.getObjects().find(
-      (o: any) => o.type === 'box' && o.boxId === box.id
-    );
-
-    if (obj) {
-      // Center the view on the box
-      const center = canvas.getCenter();
-      const objCenter = obj.getCenterPoint();
-
-      canvas.setViewportTransform([
-        canvas.getZoom(),
-        0,
-        0,
-        canvas.getZoom(),
-        center.left - objCenter.x * canvas.getZoom(),
-        center.top - objCenter.y * canvas.getZoom(),
-      ]);
-      canvas.renderAll();
-    }
-  }, [fabricLoaded, canvasStore.selectedBoxId]);
+  // Center view on selected box (disabled for now - causes jumping)
+  // useEffect(() => {
+  //   if (!fabricCanvasRef.current || !canvasStore.selectedBoxId || !fabricLoaded || !canvasElementRef.current) return;
+  //
+  //   const canvas = fabricCanvasRef.current;
+  //   const box = canvasStore.getBox(canvasStore.selectedBoxId);
+  //   if (!box) return;
+  //
+  //   // Find the fabric object
+  //   const obj = canvas.getObjects().find(
+  //     (o: any) => o.type === 'box' && o.boxId === box.id
+  //   );
+  //
+  //   if (obj) {
+  //     // Center the view on the box
+  //     const center = canvas.getCenter();
+  //     const objCenter = obj.getCenterPoint();
+  //
+  //     canvas.setViewportTransform([
+  //       canvas.getZoom(),
+  //       0,
+  //       0,
+  //       canvas.getZoom(),
+  //       center.left - objCenter.x * canvas.getZoom(),
+  //       center.top - objCenter.y * canvas.getZoom(),
+  //     ]);
+  //     canvas.renderAll();
+  //   }
+  // }, [fabricLoaded, canvasStore.selectedBoxId]);
 
   if (!fabricLoaded) {
     return (

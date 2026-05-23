@@ -118,18 +118,19 @@ export function createBoxObject(options: any): any {
     }
 
     // Create IText for editable text
+    // Use relative positioning - text will be positioned relative to box via updateTextPosition
     const text = new fabric.IText(content, {
       fontSize: 12,
       fill: '#222222',
       fontFamily: 'Raleway, sans-serif',
       lineHeight: 1.5,
       width: this.width - 20,
-      left: 10,
-      top: 10,
+      left: 0,
+      top: 0,
       originX: 'left',
       originY: 'top',
-      selectable: false,
-      evented: false,  // Don't intercept mouse events - box handles everything
+      selectable: true,  // Must be selectable to be editable
+      evented: true,
       editingBorderColor: '#667eea',
       padding: 5,
       borderColor: '#ddd',
@@ -141,26 +142,32 @@ export function createBoxObject(options: any): any {
       lockUniScaling: true,
     });
 
-    // Make text editable when box is selected and user presses Enter
-    const boxSelf = this;
-    canvas.on('key:down', (opt: any) => {
-      if (opt.e.key === 'Enter' && canvas.getActiveObject() === boxSelf) {
-        text.set({ evented: true, selectable: true });
-        canvas.setActiveObject(text);
-        text.enterEditing();
-        text.selectAll();
-        canvas.renderAll();
-      }
-      if (opt.e.key === 'Escape') {
-        text.set({ evented: false, selectable: false });
-        canvas.setActiveObject(boxSelf);
-        canvas.renderAll();
-      }
-    });
-
     // Store reference to box
     text.boxId = this.boxId;
     text.isBoxText = true;
+
+    // Double-click on text to edit
+    text.on('mousedblclick', (opt: any) => {
+      const evt = opt.e;
+      canvas.setActiveObject(text);
+      text.set({ selectable: true, evented: true });
+      text.enterEditing();
+      text.selectAll();
+      evt.preventDefault();
+      evt.stopPropagation();
+    });
+
+    // Single click on text selects the box (not the text)
+    text.on('mousedown', (opt: any) => {
+      const evt = opt.e;
+      // Only handle if not already in editing mode
+      if (!text.isEditing) {
+        // Select the box instead of the text
+        canvas.setActiveObject(this);
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+    });
 
     // When text is edited
     text.on('changed', () => {
@@ -169,7 +176,6 @@ export function createBoxObject(options: any): any {
 
     // When text editing starts
     text.on('editing:entered', () => {
-      // Select the box for styling
       this.set({ stroke: '#ccc', strokeWidth: 2 });
       canvas.renderAll();
     });
@@ -177,19 +183,24 @@ export function createBoxObject(options: any): any {
     // When text editing exits
     text.on('editing:exited', () => {
       this.set({ stroke: '#ddd', strokeWidth: 1 });
-      text.set({ evented: false, selectable: false });
+      text.set({ selectable: false });
       canvas.setActiveObject(this);
       canvas.renderAll();
     });
 
     this.textObject = text;
-    canvas.add(text);
     
-    // Bring text to front but keep it associated with box
+    // Position text relative to box immediately
+    text.set({
+      left: this.left + 10,
+      top: this.top + 10,
+      width: this.width - 20
+    });
+    
+    canvas.add(text);
     text.bringToFront();
     
-    // When box moves, move text with it
-    // Text has relative coordinates, so we set its position based on box position
+    // When box moves or is selected, update text position relative to box
     const updateTextPosition = () => {
       if (this.textObject) {
         this.textObject.set({
@@ -203,9 +214,7 @@ export function createBoxObject(options: any): any {
     this.on('moving', updateTextPosition);
     this.on('scaling', updateTextPosition);
     this.on('modified', updateTextPosition);
-    
-    // Also update text when box is selected (for positioning after canvas rebuild)
-    this.on('selected', updateTextPosition);
+    // Don't update on selected - this can cause jumping
   };
 
   rect.updateText = function(content: string) {
@@ -463,7 +472,7 @@ export function addBoxToCanvas(
   onSelect?: (boxId: string) => void,
   onDoubleClick?: (boxId: string) => void,
   onTextChanged?: (boxId: string, newContent: string) => void,
-  onMoved?: (boxId: string, deltaX: number, deltaY: number) => void
+  onMoved?: (boxId: string, newX: number, newY: number) => void
 ): any {
   const boxObj = createBoxObject({
     left: box.x || 0,
@@ -492,6 +501,9 @@ export function addBoxToCanvas(
 
   boxObj.on('selected', () => {
     onSelect?.(box.id);
+    if (boxObj.textObject) {
+      boxObj.textObject.bringToFront();
+    }
   });
 
   boxObj.on('mouseenter', () => {
@@ -502,13 +514,6 @@ export function addBoxToCanvas(
   boxObj.on('mouseleave', () => {
     boxObj.leaveHover();
     canvas.renderAll();
-  });
-
-  // Make the box bring its text to front when selected
-  boxObj.on('selected', () => {
-    if (boxObj.textObject) {
-      boxObj.textObject.bringToFront();
-    }
   });
 
   // Track movement and calculate delta
@@ -533,7 +538,7 @@ export function addBoxToCanvas(
     const deltaY = boxObj.top - lastTop;
     
     if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
-      onMoved?.(box.id, deltaX, deltaY);
+      onMoved?.(box.id, boxObj.left, boxObj.top);
     }
     
     lastLeft = boxObj.left;
