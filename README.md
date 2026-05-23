@@ -25,6 +25,31 @@ npm run dev
 # Open http://localhost:3000
 ```
 
+## Automated PR Flow
+
+This repository includes GitHub Actions workflows to support an automated branch-to-`main` promotion flow:
+
+- `.github/workflows/auto-open-pr.yml` opens a pull request to `main` when a non-`main` branch is pushed and marks an existing draft promotion PR ready for review.
+- `.github/workflows/pr-validation.yml` runs `npm ci` and `npm run build` on pull requests targeting `main`.
+- `.github/workflows/enable-auto-merge.yml` attempts to enable GitHub auto-merge for repository PRs after they are opened.
+
+To complete the workflow end to end, configure these repository settings in GitHub and Vercel:
+
+1. **Vercel**
+   - Import the repository into Vercel.
+   - Enable Preview deployments for pull requests.
+   - Confirm Vercel posts its deployment status back to GitHub.
+2. **Branch protection for `main`**
+   - Require the `PR validation / build` check.
+   - Require the Vercel preview/deployment check.
+   - Optionally require branches to be up to date before merging.
+   - Optionally require at least one approving review.
+3. **GitHub pull request settings**
+   - Enable auto-merge in the repository settings so the auto-merge workflow can queue merges.
+   - Enable GitHub Copilot code review if you want Copilot to add review feedback on PRs.
+
+`npm run lint` is not part of the PR workflow today because the current script is incompatible with the installed Next.js 16 CLI and fails before linting begins.
+
 ## Project Structure
 
 ```
