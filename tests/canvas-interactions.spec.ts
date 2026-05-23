@@ -1,14 +1,20 @@
 import { test, expect } from '@playwright/test';
 
 // Comprehensive tests for canvas interactions
+// NOTE: These tests require window.testFabricCanvas exposed by Canvas component.
+// Ensure server is running from feat/canvas-interactions branch with: npm run dev
+// Then run: npx playwright test tests/canvas-interactions.spec.ts
 test.describe('Canvas Interactive Features', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('http://localhost:3000');
     await expect(page).toHaveTitle(/mdspace/);
-    // Wait for fabric to be available
-    await page.waitForFunction(() => !!window.fabric, { timeout: 10000 });
-    // Wait a bit more for initial render
-    await page.waitForTimeout(1000);
+    // Wait for testFabricCanvas to be exposed by Canvas component
+    await page.waitForFunction(() => !!window.testFabricCanvas, { timeout: 15000 });
+    // Wait for initial objects to load
+    await page.waitForFunction(() => {
+      const canvas = (window as any).testFabricCanvas;
+      return canvas && canvas.getObjects().length > 0;
+    }, { timeout: 10000 });
   });
 
   // Helper to get fabric canvas state - uses window.testFabricCanvas exposed by Canvas component
