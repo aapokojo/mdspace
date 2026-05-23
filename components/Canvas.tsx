@@ -75,6 +75,10 @@ export default function Canvas() {
 
     if (!currentCanvas) return;
 
+    // Save current viewport state before clearing
+    const vpt = canvas.viewportTransform?.slice() || [1, 0, 0, 1, 0, 0];
+    const currentZoom = canvas.getZoom();
+
     // Clear and rebuild canvas
     canvas.clear();
 
@@ -129,6 +133,9 @@ export default function Canvas() {
       );
     });
 
+    // Restore viewport state after rebuild
+    canvas.setViewportTransform(vpt);
+    canvas.setZoom(currentZoom);
     canvas.renderAll();
   }, [fabricLoaded, canvasStore.currentCanvasId, canvasStore.boxes]);
 
