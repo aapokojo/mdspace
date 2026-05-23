@@ -29,7 +29,7 @@ npm run dev
 
 This repository includes GitHub Actions workflows to support an automated branch-to-`main` promotion flow:
 
-- `.github/workflows/auto-open-pr.yml` opens a pull request to `main` when a non-`main` branch is pushed and no open PR already exists.
+- `.github/workflows/auto-open-pr.yml` opens a pull request to `main` when a non-`main` branch is pushed and marks an existing draft promotion PR ready for review.
 - `.github/workflows/pr-validation.yml` runs `npm ci` and `npm run build` on pull requests targeting `main`.
 - `.github/workflows/enable-auto-merge.yml` attempts to enable GitHub auto-merge for repository PRs after they are opened.
 

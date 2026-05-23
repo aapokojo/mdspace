@@ -37,7 +37,30 @@ jobs:
             });
 
             if (existingPulls.length > 0) {
-              core.info(`Open PR #${existingPulls[0].number} already exists for ${head} -> ${base}.`);
+              const existingPull = existingPulls[0];
+
+              if (existingPull.draft) {
+                await github.graphql(
+                  `
+                    mutation MarkPullRequestReadyForReview($pullRequestId: ID!) {
+                      markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
+                        pullRequest {
+                          number
+                          isDraft
+                        }
+                      }
+                    }
+                  `,
+                  {
+                    pullRequestId: existingPull.node_id,
+                  }
+                );
+
+                core.info(`Marked existing PR #${existingPull.number} ready for review.`);
+              } else {
+                core.info(`Open PR #${existingPull.number} already exists for ${head} -> ${base}.`);
+              }
+
               return;
             }
 
@@ -46,6 +69,7 @@ jobs:
               repo,
               head,
               base,
+              draft: false,
               title: `Auto PR: ${head} → ${base}`,
               body: [
                 '## Summary',
