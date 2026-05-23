@@ -133,35 +133,35 @@ export default function Canvas() {
     canvas.renderAll();
   }, [fabricLoaded, canvasStore.currentCanvasId, canvasStore.boxes]);
 
-  // Center view on selected box
-  useEffect(() => {
-    if (!fabricCanvasRef.current || !canvasStore.selectedBoxId || !fabricLoaded || !canvasElementRef.current) return;
-
-    const canvas = fabricCanvasRef.current;
-    const box = canvasStore.getBox(canvasStore.selectedBoxId);
-    if (!box) return;
-
-    // Find the fabric object
-    const obj = canvas.getObjects().find(
-      (o: any) => o.type === 'box' && o.boxId === box.id
-    );
-
-    if (obj) {
-      // Center the view on the box
-      const center = canvas.getCenter();
-      const objCenter = obj.getCenterPoint();
-
-      canvas.setViewportTransform([
-        canvas.getZoom(),
-        0,
-        0,
-        canvas.getZoom(),
-        center.left - objCenter.x * canvas.getZoom(),
-        center.top - objCenter.y * canvas.getZoom(),
-      ]);
-      canvas.renderAll();
-    }
-  }, [fabricLoaded, canvasStore.selectedBoxId]);
+  // Center view on selected box (disabled for now - causes jumping)
+  // useEffect(() => {
+  //   if (!fabricCanvasRef.current || !canvasStore.selectedBoxId || !fabricLoaded || !canvasElementRef.current) return;
+  //
+  //   const canvas = fabricCanvasRef.current;
+  //   const box = canvasStore.getBox(canvasStore.selectedBoxId);
+  //   if (!box) return;
+  //
+  //   // Find the fabric object
+  //   const obj = canvas.getObjects().find(
+  //     (o: any) => o.type === 'box' && o.boxId === box.id
+  //   );
+  //
+  //   if (obj) {
+  //     // Center the view on the box
+  //     const center = canvas.getCenter();
+  //     const objCenter = obj.getCenterPoint();
+  //
+  //     canvas.setViewportTransform([
+  //       canvas.getZoom(),
+  //       0,
+  //       0,
+  //       canvas.getZoom(),
+  //       center.left - objCenter.x * canvas.getZoom(),
+  //       center.top - objCenter.y * canvas.getZoom(),
+  //     ]);
+  //     canvas.renderAll();
+  //   }
+  // }, [fabricLoaded, canvasStore.selectedBoxId]);
 
   if (!fabricLoaded) {
     return (

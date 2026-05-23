@@ -129,7 +129,7 @@ export function createBoxObject(options: any): any {
       originX: 'left',
       originY: 'top',
       selectable: false,
-      evented: false,  // Don't intercept mouse events - box handles everything
+      evented: true,  // Allow mouse events for editing
       editingBorderColor: '#667eea',
       padding: 5,
       borderColor: '#ddd',
@@ -141,26 +141,31 @@ export function createBoxObject(options: any): any {
       lockUniScaling: true,
     });
 
-    // Make text editable when box is selected and user presses Enter
-    const boxSelf = this;
-    canvas.on('key:down', (opt: any) => {
-      if (opt.e.key === 'Enter' && canvas.getActiveObject() === boxSelf) {
-        text.set({ evented: true, selectable: true });
-        canvas.setActiveObject(text);
-        text.enterEditing();
-        text.selectAll();
-        canvas.renderAll();
-      }
-      if (opt.e.key === 'Escape') {
-        text.set({ evented: false, selectable: false });
-        canvas.setActiveObject(boxSelf);
-        canvas.renderAll();
-      }
-    });
-
     // Store reference to box
     text.boxId = this.boxId;
     text.isBoxText = true;
+
+    // Double-click on text to edit
+    text.on('mousedblclick', (opt: any) => {
+      const evt = opt.e;
+      canvas.setActiveObject(text);
+      text.enterEditing();
+      text.selectAll();
+      evt.preventDefault();
+      evt.stopPropagation();
+    });
+
+    // Single click on text selects the box (not the text)
+    // But allow the event to propagate so box can still be dragged
+    text.on('mousedown', (opt: any) => {
+      const evt = opt.e;
+      // Select the box
+      if (canvas.getActiveObject() !== this) {
+        canvas.setActiveObject(this);
+      }
+      // Don't prevent default or stop propagation - let box handle dragging
+      // The double-click handler will handle editing
+    });
 
     // When text is edited
     text.on('changed', () => {
