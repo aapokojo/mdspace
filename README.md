@@ -33,7 +33,7 @@ This repository includes GitHub Actions workflows to support an automated branch
 - `.github/workflows/pr-validation.yml` runs `npm ci` and `npm run build` on pull requests targeting `master`.
 - `.github/workflows/enable-auto-merge.yml` attempts to enable GitHub auto-merge for repository PRs after they are opened.
 
-To complete the workflow end to end, configure these repository settings outside the repo:
+To complete the workflow end to end, configure these repository settings in GitHub and Vercel:
 
 1. **Vercel**
    - Import the repository into Vercel.
