@@ -10,29 +10,54 @@ git pull origin main
 
 # Create new branch with descriptive name
 git checkout -b feat/description-of-changes
-git push origin feat/description-of-changes
 ```
 
-### 2. Validate Changes in Headless Browser (Port 3000)
+### 2. Make Changes and Validate Locally
+
+Make your code changes, then validate:
+
+**TypeScript check (must pass):**
+```bash
+npx tsc --noEmit
+```
 
 **Start the dev server:**
 ```bash
-cd /Users/aapokojo/Projects/mdspace
 npm run dev  # Runs on port 3000 by default
 ```
 
-**Test in headless browser:**
+### 3. Run Automated Tests (MUST PASS BEFORE PUSHING)
+
+**Install Playwright test dependencies:**
+```bash
+npm install @playwright/test --save-dev
+npx playwright install
+```
+
+**Run all tests:**
+```bash
+npx playwright test
+```
+
+**Run specific test file:**
+```bash
+npx playwright test tests/canvas-interactions.spec.ts
+```
+
+**⚠️ CRITICAL: All tests must pass before proceeding to step 4. Fix any failures first.**
+
+**Current test files:**
+- `tests/ui-test.spec.ts` - Basic UI smoke tests
+- `tests/canvas-interactions.spec.ts` - Canvas interaction tests (box selection, panning, scrolling)
+
+### 4. Manual Testing (Optional but Recommended)
+
+**Open in browser:**
 ```bash
 # Option 1: Use existing Chrome/Safari
 open -a "Google Chrome" --args --app="http://localhost:3000" --window-size=1200,800
 # or
 open -a Safari "http://localhost:3000"
-
-# Option 2: Headless testing with Playwright (if configured)
-npx playwright test
-
-# Option 3: curl to check server is running
-curl -s http://localhost:3000 > /dev/null && echo "Server running"
 ```
 
 **Manual Testing Checklist:**
@@ -45,13 +70,14 @@ curl -s http://localhost:3000 > /dev/null && echo "Server running"
 - [ ] AI panel visible above footer
 - [ ] Nested canvas navigation
 
-### 3. Fix Errors
+### 5. Fix Errors
 
 **Common issues:**
 
 | Issue | Fix |
 |-------|-----|
 | Build errors | Run `npx tsc --noEmit` to check TypeScript |
+| Test failures | Run specific test with `npx playwright test tests/filename.spec.ts --headed` |
 | Next.js errors | Check `.next/dev/logs/next-development.log` |
 | Port 3000 in use | Kill process: `lsof -i :3000 -t | xargs kill -9` |
 | Canvas not updating | Check store dependencies in useEffect |
@@ -61,6 +87,9 @@ curl -s http://localhost:3000 > /dev/null && echo "Server running"
 # TypeScript check
 npx tsc --noEmit
 
+# Run tests in headed mode for debugging
+npx playwright test tests/canvas-interactions.spec.ts --headed
+
 # Kill processes on port 3000
 lsof -i :3000 -t | xargs -r kill -9 2>/dev/null
 
@@ -68,10 +97,12 @@ lsof -i :3000 -t | xargs -r kill -9 2>/dev/null
 tail -f .next/dev/logs/next-development.log
 ```
 
-### 4. Push Branch and Create PR
+### 6. Commit, Push, and Create PR
+
+**Only after all tests pass:**
 
 ```bash
-# Add all changes
+# Add all changes (including new test files)
 git add -A
 
 # Commit with descriptive message
@@ -99,8 +130,19 @@ git push origin feat/description-of-changes
 | See changes | `git status` |
 | Run TypeScript check | `npx tsc --noEmit` |
 | Start dev server | `npm run dev` |
+| Run all tests | `npx playwright test` |
+| Run specific test | `npx playwright test tests/filename.spec.ts` |
+| Run tests headed | `npx playwright test --headed` |
 | Kill port 3000 | `lsof -i :3000 -t | xargs -r kill -9` |
 | Open in browser | `open http://localhost:3000` |
+
+## Workflow Summary
+
+```
+Create Branch → Make Changes → TypeScript Check → Run Tests → Fix Failures → Push Branch → Create PR
+                                                        ↑
+                                                   MUST PASS
+```
 
 ## Troubleshooting
 
@@ -114,6 +156,11 @@ kill -9 <PID>
 # Or kill all node processes
 pkill -9 -f node
 ```
+
+### Test failures
+- Run in headed mode: `npx playwright test --headed`
+- Focus on one test: `npx playwright test tests/canvas-interactions.spec.ts:10 --headed`
+- Check test traces: `npx playwright show-trace test-results/.../trace.zip`
 
 ### TypeScript errors
 - Check for type mismatches in callbacks
