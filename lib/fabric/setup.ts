@@ -485,7 +485,10 @@ export function addBoxToCanvas(
     content: box.content || '',
   });
 
-  // Add text label with editing support
+  // Add box to canvas first
+  canvas.add(boxObj);
+
+  // Add text label with editing support - text will be added on top of box
   boxObj.addTextLabel(box.content || 'New Box', canvas, (newContent: string) => {
     onTextChanged?.(box.id, newContent);
   });
@@ -552,7 +555,6 @@ export function addBoxToCanvas(
     }
   });
 
-  canvas.add(boxObj);
   return boxObj;
 }
 
