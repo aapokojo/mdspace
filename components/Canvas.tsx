@@ -45,6 +45,9 @@ export default function Canvas() {
 
     const canvas = createCanvas(canvasElementRef.current);
     fabricCanvasRef.current = canvas;
+    
+    // Expose canvas for Playwright testing
+    (window as any).testFabricCanvas = canvas;
 
     // Fit to container
     fitCanvasToWindow(canvas, canvasContainerRef.current);
