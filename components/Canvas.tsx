@@ -85,7 +85,6 @@ export default function Canvas() {
         },
         (boxId) => {
           // Double click - if box has linked canvas, navigate to it
-          // Otherwise do nothing (text editing is handled by Enter key in fabric)
           const box = canvasStore.getBox(boxId);
           if (box?.linkedCanvasId) {
             canvasStore.navigateToCanvas(box.linkedCanvasId);
@@ -99,23 +98,20 @@ export default function Canvas() {
           }
         },
         (boxId, newX, newY) => {
-          // Box moved - update position in store and move nested content
+          // Box moved - update store
           const box = canvasStore.getBox(boxId);
           if (box && (box.x !== newX || box.y !== newY)) {
-            const updatedBox = {
-              ...box,
-              x: newX,
-              y: newY,
-            };
-            canvasStore.updateBox(updatedBox);
-
+            const deltaX = newX - box.x;
+            const deltaY = newY - box.y;
+            
+            // Update the moved box
+            canvasStore.updateBox({ ...box, x: newX, y: newY });
+            
             // If this box has a linked canvas, move all boxes in that canvas too
             if (box.linkedCanvasId) {
               const nestedCanvas = canvasStore.canvases.find(c => c.id === box.linkedCanvasId);
               if (nestedCanvas) {
                 const nestedBoxes = canvasStore.boxes[nestedCanvas.id] || [];
-                const deltaX = newX - box.x;
-                const deltaY = newY - box.y;
                 nestedBoxes.forEach(nestedBox => {
                   canvasStore.updateBox({
                     ...nestedBox,
