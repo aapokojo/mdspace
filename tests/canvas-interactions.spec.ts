@@ -199,7 +199,7 @@ test.describe('Canvas Interactive Features', () => {
     
     // All positions should be maintained (< 1px tolerance)
     for (const initial of initialPositions) {
-      const after = afterPositions.find(p => p.id === initial.id);
+      const after = afterPositions.find((p: any) => p.id === initial.id);
       if (after) {
         expect(Math.abs(after.left - initial.left)).toBeLessThan(1);
         expect(Math.abs(after.top - initial.top)).toBeLessThan(1);
