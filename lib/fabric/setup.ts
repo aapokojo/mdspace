@@ -140,13 +140,29 @@ export function createBoxObject(options: any): any {
       lockScalingX: true,
       lockScalingY: true,
       lockUniScaling: true,
+      lockMovementX: true,  // Prevent text from being dragged separately from box
+      lockMovementY: true,  // Prevent text from being dragged separately from box
     });
 
     // Store reference to box
     text.boxId = this.boxId;
     text.isBoxText = true;
 
-    // Double-click on text to edit
+    // Single click on text selects and focuses it for editing
+    text.on('mousedown', (opt: any) => {
+      const evt = opt.e;
+      if (!text.isEditing) {
+        // Single click: select text and enter editing mode
+        canvas.setActiveObject(text);
+        text.set({ selectable: true, evented: true });
+        text.enterEditing();
+        text.selectAll();
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+    });
+
+    // Double-click on text to edit (fallback)
     text.on('mousedblclick', (opt: any) => {
       const evt = opt.e;
       canvas.setActiveObject(text);
@@ -155,18 +171,6 @@ export function createBoxObject(options: any): any {
       text.selectAll();
       evt.preventDefault();
       evt.stopPropagation();
-    });
-
-    // Single click on text selects the box (not the text)
-    text.on('mousedown', (opt: any) => {
-      const evt = opt.e;
-      // Only handle if not already in editing mode
-      if (!text.isEditing) {
-        // Select the box instead of the text
-        canvas.setActiveObject(this);
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
     });
 
     // When text is edited
@@ -180,10 +184,10 @@ export function createBoxObject(options: any): any {
       canvas.renderAll();
     });
 
-    // When text editing exits
+    // When text editing exits - keep text selectable for next edit
     text.on('editing:exited', () => {
       this.set({ stroke: '#ddd', strokeWidth: 1 });
-      text.set({ selectable: false });
+      text.set({ selectable: true, evented: true });  // Keep selectable for next edit
       canvas.setActiveObject(this);
       canvas.renderAll();
     });
