@@ -16,6 +16,11 @@ export default function HomePage() {
   const canvasStore = useCanvasStore();
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  // Expose store for Playwright testing
+  useEffect(() => {
+    (window as any).testCanvasStore = canvasStore;
+  }, [canvasStore]);
+
   // Initialize with a root canvas if none exists
   useEffect(() => {
     const initialize = async () => {

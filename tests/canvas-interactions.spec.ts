@@ -218,12 +218,35 @@ test.describe('Canvas Interactive Features', () => {
     const initialState = await getFabricState(page);
     if (!initialState || initialState.objects.length === 0) return;
 
-    // Get initial positions of all boxes
-    const initialPositions = initialState.objects.map((o: any) => ({
+    // First, move the initial box to a different position using store update
+    const firstBox = initialState.objects[0];
+    await page.evaluate(({ boxId, newX, newY }) => {
+      const store = (window as any).testCanvasStore;
+      if (!store) return;
+      
+      const box = store.getBox(boxId);
+      if (box) {
+        store.updateBox({ ...box, x: newX, y: newY });
+      }
+    }, { boxId: firstBox.boxId, newX: 400, newY: 400 });
+
+    await page.waitForTimeout(500);
+
+    // Get positions after moving
+    const movedState = await getFabricState(page);
+    if (!movedState || movedState.objects.length === 0) return;
+
+    const movedPositions = movedState.objects.map((o: any) => ({
       id: o.boxId,
       left: o.left,
       top: o.top,
     }));
+
+    // Verify the box was moved
+    const movedBox = movedPositions.find((p: any) => p.id === firstBox.boxId);
+    expect(movedBox).not.toBeUndefined();
+    expect(movedBox.left).toBe(400);
+    expect(movedBox.top).toBe(400);
 
     // Click the "Add Box" button
     const addBoxButton = page.getByRole('button', { name: /add box|new box|box/i });
@@ -234,8 +257,8 @@ test.describe('Canvas Interactive Features', () => {
     const afterState = await getFabricState(page);
     if (!afterState) return;
 
-    // Should have one more box than before
-    expect(afterState.objects.length).toBe(initialState.objects.length + 1);
+    // Should have one more box than after moving
+    expect(afterState.objects.length).toBe(movedState.objects.length + 1);
 
     const afterPositions = afterState.objects.map((o: any) => ({
       id: o.boxId,
@@ -243,12 +266,12 @@ test.describe('Canvas Interactive Features', () => {
       top: o.top,
     }));
 
-    // All existing boxes should maintain their positions (< 1px tolerance)
-    for (const initial of initialPositions) {
-      const after = afterPositions.find((p: any) => p.id === initial.id);
+    // All existing boxes should maintain their MOVED positions (< 1px tolerance)
+    for (const moved of movedPositions) {
+      const after = afterPositions.find((p: any) => p.id === moved.id);
       if (after) {
-        expect(Math.abs(after.left - initial.left)).toBeLessThan(1);
-        expect(Math.abs(after.top - initial.top)).toBeLessThan(1);
+        expect(Math.abs(after.left - moved.left)).toBeLessThan(1);
+        expect(Math.abs(after.top - moved.top)).toBeLessThan(1);
       }
     }
   });
