@@ -27,10 +27,10 @@ npm run dev
 
 ## Automated PR Flow
 
-This repository includes GitHub Actions workflows to support an automated branch-to-`master` promotion flow:
+This repository includes GitHub Actions workflows to support an automated branch-to-`main` promotion flow:
 
-- `.github/workflows/auto-open-pr.yml` opens a pull request to `master` when a non-`master` branch is pushed and no open PR already exists.
-- `.github/workflows/pr-validation.yml` runs `npm ci` and `npm run build` on pull requests targeting `master`.
+- `.github/workflows/auto-open-pr.yml` opens a pull request to `main` when a non-`main` branch is pushed and no open PR already exists.
+- `.github/workflows/pr-validation.yml` runs `npm ci` and `npm run build` on pull requests targeting `main`.
 - `.github/workflows/enable-auto-merge.yml` attempts to enable GitHub auto-merge for repository PRs after they are opened.
 
 To complete the workflow end to end, configure these repository settings in GitHub and Vercel:
@@ -39,7 +39,7 @@ To complete the workflow end to end, configure these repository settings in GitH
    - Import the repository into Vercel.
    - Enable Preview deployments for pull requests.
    - Confirm Vercel posts its deployment status back to GitHub.
-2. **Branch protection for `master`**
+2. **Branch protection for `main`**
    - Require the `PR validation / build` check.
    - Require the Vercel preview/deployment check.
    - Optionally require branches to be up to date before merging.

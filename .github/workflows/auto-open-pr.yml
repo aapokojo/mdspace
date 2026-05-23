@@ -3,7 +3,7 @@ name: Auto open PR
 on:
   push:
     branches-ignore:
-      - master
+      - main
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const head = context.ref.replace('refs/heads/', '');
-            const base = 'master';
+            const base = 'main';
 
             const { data: existingPulls } = await github.rest.pulls.list({
               owner,
