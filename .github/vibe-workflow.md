@@ -21,14 +21,39 @@ Make your code changes, then validate:
 npx tsc --noEmit
 ```
 
-**Start the dev server:**
+### 3. Run Local Dev Server with Latest Code
+
+**CRITICAL: Always ensure server is running current branch code**
+
 ```bash
-npm run dev  # Runs on port 3000 by default
+# Kill any existing Next.js servers to prevent conflicts
+lsof -i :3000 -t | xargs -r kill -9 2>/dev/null
+lsof -i :3001 -t | xargs -r kill -9 2>/dev/null
+lsof -i :3002 -t | xargs -r kill -9 2>/dev/null
+lsof -i :3005 -t | xargs -r kill -9 2>/dev/null
+
+# Verify no Next.js processes are running
+ps aux | grep -E "next|node" | grep -v grep || echo "No processes running"
+
+# Start fresh dev server from current branch
+npm run dev  # Runs on port 3000
 ```
 
-### 3. Run Automated Tests (MUST PASS BEFORE PUSHING)
+**Important:** Next.js hot-reload usually works, but after switching branches,
+**always kill and restart the server** to ensure you're testing the correct code.
 
-**Install Playwright test dependencies:**
+**Verify server is running current code:**
+```bash
+# Check that the server responds
+curl -s http://localhost:3000 > /dev/null && echo "Server running"
+
+# Check that your latest changes are present (example: check for a unique string)
+curl -s http://localhost:3000 | grep "unique-string-from-your-changes" || echo "Server has stale code - restart!"
+```
+
+### 4. Run Automated Tests (MUST PASS BEFORE PUSHING)
+
+**Install Playwright test dependencies (if not already installed):**
 ```bash
 npm install @playwright/test --save-dev
 npx playwright install
@@ -44,13 +69,14 @@ npx playwright test
 npx playwright test tests/canvas-interactions.spec.ts
 ```
 
-**⚠️ CRITICAL: All tests must pass before proceeding to step 4. Fix any failures first.**
+**⚠️ CRITICAL: All tests must pass before proceeding to step 5. Fix any failures first.**
 
 **Current test files:**
 - `tests/ui-test.spec.ts` - Basic UI smoke tests
 - `tests/canvas-interactions.spec.ts` - Canvas interaction tests (box selection, panning, scrolling)
+- `tests/critical-interactions.spec.ts` - Critical user interaction tests
 
-### 4. Manual Testing (Optional but Recommended)
+### 5. Manual Testing (Optional but Recommended)
 
 **Open in browser:**
 ```bash
@@ -61,16 +87,17 @@ open -a Safari "http://localhost:3000"
 ```
 
 **Manual Testing Checklist:**
-- [ ] Create boxes
-- [ ] Select boxes (no jumping)
-- [ ] Move boxes (text stays inside)
+- [ ] Create boxes - verify they appear at correct positions
+- [ ] Select boxes - verify no jumping, other boxes stay in place
+- [ ] Add a new box - verify existing boxes DON'T reset to original positions
+- [ ] Move boxes - verify text stays inside
 - [ ] Double-click text to edit
 - [ ] Space + drag for panning
 - [ ] Mouse scroll for vertical, Shift+scroll for horizontal
 - [ ] AI panel visible above footer
 - [ ] Nested canvas navigation
 
-### 5. Fix Errors
+### 6. Fix Errors
 
 **Common issues:**
 
@@ -78,6 +105,7 @@ open -a Safari "http://localhost:3000"
 |-------|-----|
 | Build errors | Run `npx tsc --noEmit` to check TypeScript |
 | Test failures | Run specific test with `npx playwright test tests/filename.spec.ts --headed` |
+| Server has stale code | Kill and restart: `kill $(lsof -t -i:3000) && npm run dev` |
 | Next.js errors | Check `.next/dev/logs/next-development.log` |
 | Port 3000 in use | Kill process: `lsof -i :3000 -t | xargs kill -9` |
 | Canvas not updating | Check store dependencies in useEffect |
@@ -90,14 +118,17 @@ npx tsc --noEmit
 # Run tests in headed mode for debugging
 npx playwright test tests/canvas-interactions.spec.ts --headed
 
-# Kill processes on port 3000
-lsof -i :3000 -t | xargs -r kill -9 2>/dev/null
+# Kill all processes on common ports
+kill $(lsof -t -i:3000) $(lsof -t -i:3001) $(lsof -t -i:3002) 2>/dev/null
 
 # View Next.js dev logs
 tail -f .next/dev/logs/next-development.log
+
+# Check which branch is currently checked out
+git branch --show-current
 ```
 
-### 6. Commit, Push, and Create PR
+### 7. Commit, Push, and Create PR
 
 **Only after all tests pass:**
 
@@ -130,32 +161,46 @@ git push origin feat/description-of-changes
 | See changes | `git status` |
 | Run TypeScript check | `npx tsc --noEmit` |
 | Start dev server | `npm run dev` |
+| Kill server | `lsof -i :3000 -t | xargs -r kill -9` |
 | Run all tests | `npx playwright test` |
 | Run specific test | `npx playwright test tests/filename.spec.ts` |
 | Run tests headed | `npx playwright test --headed` |
-| Kill port 3000 | `lsof -i :3000 -t | xargs -r kill -9` |
 | Open in browser | `open http://localhost:3000` |
 
 ## Workflow Summary
 
 ```
-Create Branch → Make Changes → TypeScript Check → Run Tests → Fix Failures → Push Branch → Create PR
-                                                        ↑
-                                                   MUST PASS
+Create Branch → Make Changes → TypeScript Check → Kill Server → Start Server → 
+Run Tests → Fix Failures → Manual Test → Push Branch → Create PR
+                             ↑
+                        MUST PASS
 ```
 
 ## Troubleshooting
 
-### Port already in use
-```bash
-# Find and kill the process
-lsof -i :3000
-# Note the PID, then:
-kill -9 <PID>
+### Server has stale code
+This is the most common issue. After switching branches or making changes:
 
-# Or kill all node processes
-pkill -9 -f node
+```bash
+# 1. Kill ALL existing servers
+kill $(lsof -t -i:3000) 2>/dev/null
+kill $(lsof -t -i:3001) 2>/dev/null
+kill $(lsof -t -i:3002) 2>/dev/null
+
+# 2. Verify no processes remain
+ps aux | grep node | grep -v grep
+
+# 3. Start fresh server
+npm run dev
+
+# 4. Verify current branch
+git branch --show-current
+
+# 5. Run tests
+npx playwright test
 ```
+
+If you see "Another next dev server is already running", you missed a process. Use `ps aux | grep node` to find and kill it.
 
 ### Test failures
 - Run in headed mode: `npx playwright test --headed`
