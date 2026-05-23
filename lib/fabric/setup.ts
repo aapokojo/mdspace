@@ -94,12 +94,14 @@ export function createBoxObject(options: any): any {
     rx: 0,
     ry: 0,
     selectable: true,
-    hasControls: false,
+    hasControls: true,  // Enable resize handles
     hasBorders: true,
     lockRotation: true,
     padding: 0,
     originX: 'left',
     originY: 'top',
+    lockScalingFlip: true,  // Prevent flipping when resizing
+    minScaleLimit: 0.5,  // Minimum scale
   });
 
   // Add custom properties
@@ -549,6 +551,7 @@ export function addBoxToCanvas(
     const deltaX = boxObj.left - lastLeft;
     const deltaY = boxObj.top - lastTop;
     
+    // Check if position changed significantly
     if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
       onMoved?.(box.id, boxObj.left, boxObj.top);
     }
@@ -557,12 +560,13 @@ export function addBoxToCanvas(
     lastLeft = boxObj.left;
     lastTop = boxObj.top;
     
-    // Update text position after move
+    // Update text position and width after move/scale
     if (boxObj.textObject) {
+      const currentWidth = boxObj.width * boxObj.scaleX;
       boxObj.textObject.set({
         left: boxObj.left + 10,
         top: boxObj.top + 10,
-        width: boxObj.width - 20
+        width: currentWidth - 20
       });
       canvas.renderAll();
     }
