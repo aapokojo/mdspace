@@ -485,7 +485,10 @@ export function addBoxToCanvas(
     content: box.content || '',
   });
 
-  // Add text label with editing support
+  // Add box to canvas first
+  canvas.add(boxObj);
+
+  // Add text label with editing support - text will be added on top of box
   boxObj.addTextLabel(box.content || 'New Box', canvas, (newContent: string) => {
     onTextChanged?.(box.id, newContent);
   });
@@ -517,12 +520,8 @@ export function addBoxToCanvas(
   });
 
   // Track movement and calculate delta
+  // Only update lastLeft/lastTop in modified handler to ensure onMoved is called
   boxObj.on('moving', () => {
-    const deltaX = boxObj.left - lastLeft;
-    const deltaY = boxObj.top - lastTop;
-    lastLeft = boxObj.left;
-    lastTop = boxObj.top;
-    
     // Update text position while moving
     if (boxObj.textObject) {
       boxObj.textObject.set({
@@ -541,6 +540,7 @@ export function addBoxToCanvas(
       onMoved?.(box.id, boxObj.left, boxObj.top);
     }
     
+    // Update tracking position after modification
     lastLeft = boxObj.left;
     lastTop = boxObj.top;
     
@@ -555,7 +555,6 @@ export function addBoxToCanvas(
     }
   });
 
-  canvas.add(boxObj);
   return boxObj;
 }
 

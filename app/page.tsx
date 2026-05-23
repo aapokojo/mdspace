@@ -16,10 +16,19 @@ export default function HomePage() {
   const canvasStore = useCanvasStore();
   const canvasRef = useRef<HTMLDivElement>(null);
 
+  // Expose store for Playwright testing
+  useEffect(() => {
+    (window as any).testCanvasStore = canvasStore;
+  }, [canvasStore]);
+
   // Initialize with a root canvas if none exists
+  // Add delay to ensure persist has hydrated from localStorage
   useEffect(() => {
     const initialize = async () => {
-      // Check if we have any canvases
+      // Wait for persist to finish hydrating from localStorage
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Check if we have any canvases after hydration
       if (canvasStore.canvases.length === 0) {
         // Create a root canvas
         const rootCanvas: Canvas = {
@@ -56,7 +65,7 @@ Press G to toggle grid.`,
         };
 
         canvasStore.addBox(welcomeBox);
-      } else {
+      } else if (!canvasStore.currentCanvasId) {
         // Use the first canvas as default
         canvasStore.setCurrentCanvas(canvasStore.canvases[0].id);
       }

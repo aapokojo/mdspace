@@ -209,12 +209,24 @@ export const useCanvasStore = create<CanvasState>()(
       }),
       {
         name: 'canvas-store',
-        partialize: (state) => ({
-          // Only persist these fields
-          currentCanvasId: state.currentCanvasId,
-          canvases: state.canvases,
-          boxes: state.boxes,
-        }),
+        partialize: (state) => {
+          // Convert Dates to strings for JSON serialization
+          const serializeDates = (obj: any): any => {
+            if (!obj || typeof obj !== 'object') return obj;
+            if (obj instanceof Date) return obj.toISOString();
+            if (Array.isArray(obj)) return obj.map(serializeDates);
+            const result: any = {};
+            for (const key in obj) {
+              result[key] = serializeDates(obj[key]);
+            }
+            return result;
+          };
+          return {
+            currentCanvasId: state.currentCanvasId,
+            canvases: serializeDates(state.canvases),
+            boxes: serializeDates(state.boxes),
+          };
+        },
       }
     ),
     { name: 'CanvasStore' }
